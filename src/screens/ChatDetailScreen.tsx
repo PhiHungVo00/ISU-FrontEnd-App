@@ -151,10 +151,15 @@ const normalizeSystemText = (text?: string | null) => {
   return text;
 };
 
-const pickFirstString = (...values: Array<string | null | undefined>) => {
+const pickFirstString = (...values: Array<string | number | null | undefined>) => {
   for (const value of values) {
-    if (typeof value === "string" && value.trim().length > 0) {
-      return value;
+    if (value === null || typeof value === "undefined") {
+      continue;
+    }
+
+    const normalized = typeof value === "string" ? value : typeof value === "number" ? String(value) : "";
+    if (normalized.trim().length > 0) {
+      return normalized;
     }
   }
   return null;
@@ -242,16 +247,18 @@ const mapApiMessage = (
     }
   }
 
+  const rawContent = item?.textContent ?? item?.content ?? item?.text ?? "";
+  const normalizedContent = normalizeSystemText(rawContent);
+
   return {
     id: baseId,
     role:
       senderId && currentUserId && String(senderId) === String(currentUserId) ? "outgoing" : "incoming",
-    content: isRecalled ? undefined : (item?.textContent ?? item?.content ?? item?.text ?? "") || undefined,
+    content: isRecalled ? undefined : (normalizedContent || undefined),
     attachments: attachments.length > 0 ? attachments : undefined,
     status: normalizeStatus(item?.status ?? item?.messageStatus),
     createdAt,
     isRecalled,
-    content: normalizeSystemText(item?.textContent ?? item?.content),
     conversationId:
       item?.conversationId
         ? String(item.conversationId)
@@ -891,7 +898,23 @@ export default function ChatDetailScreen() {
               );
             }
 
+            // Debug: Log conversation để kiểm tra cấu trúc data
+            console.log("[DEBUG] ===== CONVERSATION DEBUG START =====");
+            console.log("[DEBUG] Conversation object:", JSON.stringify(conversation, null, 2));
+            console.log("[DEBUG] Current user ID:", currentUserId);
+            console.log("[DEBUG] Seer ID:", conversation?.seerId);
+            console.log("[DEBUG] Customer ID:", conversation?.customerId);
+            console.log("[DEBUG] Seer data:", conversation?.seer);
+            console.log("[DEBUG] Seer CometChat UID:", conversation?.seer?.cometChatUid);
+            console.log("[DEBUG] Customer data:", conversation?.customer);
+            console.log("[DEBUG] Customer CometChat UID:", conversation?.customer?.cometChatUid);
+            console.log("[DEBUG] Direct seerCometChatUid:", conversation?.seerCometChatUid);
+            console.log("[DEBUG] Direct customerCometChatUid:", conversation?.customerCometChatUid);
+
             const remoteUid = resolvePartnerCometChatUid(conversation, currentUserId);
+            console.log("[DEBUG] Resolved partner CometChat UID:", remoteUid);
+            console.log("[DEBUG] ===== CONVERSATION DEBUG END =====");
+
             setPartnerCometChatUid(remoteUid);
 
             setIsPartnerOnline(
